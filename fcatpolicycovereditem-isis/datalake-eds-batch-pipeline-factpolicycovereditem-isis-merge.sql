@@ -1,0 +1,637 @@
+/*
+Amendment History:
+CRQ                     Modified date           modified by       	  description
+CRQ000000238343          16-07-2025                Madhuri             Included missing column (cover_category)
+*/
+BEGIN;
+SET TIMEZONE = 'Singapore';		
+-- Creating one temptable by union both finaltemp and final table to check whether businesskey is already present or not in final table
+
+CREATE TABLE #tempstgFactPolicyCoveredItem AS SELECT source_app_code ,source_data_set ,dml_ind , case when latest_record_created_date is null then record_created_date else latest_record_created_date END AS record_created_date, record_updated_date ,record_created_by ,record_updated_by ,record_eff_from_date ,
+			CASE 
+            WHEN dml_ind <>'D' AND policy_covered_item_uuid IS NULL 
+            THEN date_trunc('second', to_timestamp('9999-12-31', 'yyyy-MM-dd'))
+            WHEN dml_ind <>'D' AND policy_covered_item_uuid IS NOT NULL AND rnk=1
+            THEN date_trunc('second', to_timestamp('9999-12-31', 'yyyy-MM-dd'))
+            WHEN dml_ind='D' then record_eff_from_date
+            ELSE latest_record_eff_from_date END  AS record_eff_to_date , 
+			CASE 
+            WHEN dml_ind <> 'D' AND policy_covered_item_uuid IS NULL
+            THEN 'Y'
+            WHEN dml_ind <> 'D' AND policy_covered_item_uuid IS NOT NULL AND rnk=1  
+            THEN 'Y'
+            WHEN dml_ind  = 'D' then 'N'
+            ELSE 'N'
+        END AS active_record_ind,policy_covered_item_uuid
+	,business_key
+    ,policy_uuid
+    ,policy_id
+    ,policy_no
+    ,campaign_uuid
+    ,product_uuid
+    ,policy_status_id
+    ,submit_date_key
+    ,entry_date_key
+    ,commencement_date_key
+    ,issue_date_key
+    ,start_date_key
+    ,end_date_key
+    ,nett_premium 
+    ,gst_on_premium
+    ,total_premium
+    ,annualised_premium_discount_without_gst 
+    ,gst_on_discount_amount
+    ,loading_amount
+    ,gst_on_loading_amount
+    ,spi
+    ,annualised_premium_payable_without_gst
+    ,wpi
+    ,sum_assured
+    ,sales_agent_uuid 
+    ,servicing_agent_uuid
+    ,scan_date_key
+    ,despatch_date_key
+    ,customer_uuid
+    ,policy_type_code
+    ,business_type_code
+    ,source_code
+    ,covered_item_type_code
+    ,premium_mode_id
+    ,pay_mode_id
+    ,Retained_Premium_Without_GST
+    ,standard_premium_without_gst
+    ,Annualised_Standard_Premium_Without_GST
+    ,Annualised_Occupational_Loading 
+    ,Other_Loading
+    ,Annualised_Disability_Loading
+    ,Sub_Standard_Rate
+    ,Annualised_Mortality_Loading 
+	,ipmi_and_rider_discount_without_gst
+    ,ipmi_and_rider_discount_gst
+    ,ipmi_and_rider_loading_premium_without_gst
+    ,ipmi_and_rider_loading_premium_gst
+    ,mshl_additional_premium_without_gst
+    ,mshl_additional_premium_gst
+    ,mshl_premium_without_gst
+    ,mshl_premium_gst
+    ,ipmi_and_rider_premium_without_gst
+    ,ipmi_and_rider_premium_gst
+    ,mshl_premium_payable_without_gst
+    ,mshl_premium_payable_gst
+    ,ipmi_and_rider_premium_payable_without_gst
+    ,ipmi_and_rider_premium_payable_gst
+    ,mshl_pioneer_generation_subsidies_without_gst
+    ,mshl_pioneer_generation_subsidies_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_gst
+    ,mshl_transitional_subsidies_without_gst
+    ,mshl_transitional_subsidies_gst
+    ,mshl_premium_rebates_without_gst
+    ,mshl_premium_rebates_gst
+    ,mshl_pensioner_scheme_without_gst
+    ,mshl_pensioner_scheme_gst
+    ,Cover_Category
+	,ipmi_and_rider_discount_with_gst
+    ,ipmi_and_rider_loading_premium_with_gst
+    ,mshl_additional_premium_with_gst
+    ,mshl_premium_with_gst
+    ,ipmi_and_rider_premium_with_gst
+    ,mshl_premium_payable_with_gst
+    ,ipmi_and_rider_premium_payable_with_gst
+    ,mshl_pioneer_generation_subsidies_with_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst
+    ,mshl_transitional_subsidies_with_gst
+    ,mshl_premium_rebates_with_gst
+    ,mshl_pensioner_scheme_with_gst
+    ,cash_benefit
+    ,accumulated_bonus
+    ,surrender_bonus
+    ,non_inforce_policy_status_changed_date_key
+    ,reinstatement_date_key
+    ,Annualised_Standard_Premium_With_GST
+    ,Annualised_Premium_Payable_With_GST
+    ,Annualised_Premium_Discount_With_GST
+    ,Annualised_Subsidy_Without_GST
+    ,Annualised_Subsidy_With_GST
+    ,Annualised_Premium_Extra_Without_GST 
+    ,Annualised_Premium_Extra_With_GST
+	,checksum,table_type,latest_record_eff_from_date,rnk
+            FROM(SELECT temp.*,
+                    ROW_NUMBER() OVER (PARTITION BY temp.policy_covered_item_uuid ORDER BY temp.record_eff_from_date DESC) AS rnk,
+                    LAG(record_eff_from_date) OVER (PARTITION BY temp.policy_covered_item_uuid ORDER BY temp.record_eff_from_date DESC) AS latest_record_eff_from_date,LEAD(record_created_date) OVER (
+					PARTITION BY business_key  ORDER BY record_eff_from_date DESC ) AS latest_record_created_date FROM
+                    (
+                    SELECT source_app_code,source_data_set,dml_ind,record_created_date,record_updated_date,record_created_by,record_updated_by,record_eff_from_date,record_eff_to_date,active_record_ind,policy_covered_item_uuid
+	,business_key
+	 ,policy_uuid
+    ,policy_id
+    ,policy_no
+    ,campaign_uuid
+    ,product_uuid
+    ,policy_status_id
+    ,submit_date_key
+    ,entry_date_key
+    ,commencement_date_key
+    ,issue_date_key
+    ,start_date_key
+    ,end_date_key
+    ,nett_premium 
+    ,gst_on_premium
+    ,total_premium
+    ,annualised_premium_discount_without_gst 
+    ,gst_on_discount_amount
+    ,loading_amount
+    ,gst_on_loading_amount
+    ,spi
+    ,annualised_premium_payable_without_gst
+    ,wpi
+    ,sum_assured
+    ,sales_agent_uuid 
+    ,servicing_agent_uuid
+    ,scan_date_key
+    ,despatch_date_key
+    ,customer_uuid
+    ,policy_type_code
+    ,business_type_code
+    ,source_code
+    ,covered_item_type_code
+    ,premium_mode_id
+    ,pay_mode_id
+    ,Retained_Premium_Without_GST
+    ,standard_premium_without_gst
+    ,Annualised_Standard_Premium_Without_GST
+    ,Annualised_Occupational_Loading 
+    ,Other_Loading
+    ,Annualised_Disability_Loading
+    ,Sub_Standard_Rate
+    ,Annualised_Mortality_Loading 
+	,ipmi_and_rider_discount_without_gst
+    ,ipmi_and_rider_discount_gst
+    ,ipmi_and_rider_loading_premium_without_gst
+    ,ipmi_and_rider_loading_premium_gst
+    ,mshl_additional_premium_without_gst
+    ,mshl_additional_premium_gst
+    ,mshl_premium_without_gst
+    ,mshl_premium_gst
+    ,ipmi_and_rider_premium_without_gst
+    ,ipmi_and_rider_premium_gst
+    ,mshl_premium_payable_without_gst
+    ,mshl_premium_payable_gst
+    ,ipmi_and_rider_premium_payable_without_gst
+    ,ipmi_and_rider_premium_payable_gst
+    ,mshl_pioneer_generation_subsidies_without_gst
+    ,mshl_pioneer_generation_subsidies_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_gst
+    ,mshl_transitional_subsidies_without_gst
+    ,mshl_transitional_subsidies_gst
+    ,mshl_premium_rebates_without_gst
+    ,mshl_premium_rebates_gst
+    ,mshl_pensioner_scheme_without_gst
+    ,mshl_pensioner_scheme_gst
+    ,Cover_Category
+	,ipmi_and_rider_discount_with_gst
+    ,ipmi_and_rider_loading_premium_with_gst
+    ,mshl_additional_premium_with_gst
+    ,mshl_premium_with_gst
+    ,ipmi_and_rider_premium_with_gst
+    ,mshl_premium_payable_with_gst
+    ,ipmi_and_rider_premium_payable_with_gst
+    ,mshl_pioneer_generation_subsidies_with_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst
+    ,mshl_transitional_subsidies_with_gst
+    ,mshl_premium_rebates_with_gst
+    ,mshl_pensioner_scheme_with_gst
+    ,cash_benefit
+    ,accumulated_bonus
+    ,surrender_bonus
+    ,non_inforce_policy_status_changed_date_key
+    ,reinstatement_date_key
+    ,Annualised_Standard_Premium_With_GST
+    ,Annualised_Premium_Payable_With_GST
+    ,Annualised_Premium_Discount_With_GST
+    ,Annualised_Subsidy_Without_GST
+    ,Annualised_Subsidy_With_GST
+    ,Annualised_Premium_Extra_Without_GST 
+    ,Annualised_Premium_Extra_With_GST
+	,checksum,'TEMP' as table_type FROM el_eds_def_stg.stgfactpolicycovereditem WHERE source_app_code='ISIS'
+                    UNION
+(SELECT source_app_code,source_data_set,dml_ind,record_created_date,record_updated_date,record_created_by,record_updated_by,record_eff_from_date,record_eff_to_date,active_record_ind,policy_covered_item_uuid
+	,business_key
+	 ,policy_uuid
+    ,policy_id
+    ,policy_no
+    ,campaign_uuid
+    ,product_uuid
+    ,policy_status_id
+    ,submit_date_key
+    ,entry_date_key
+    ,commencement_date_key
+    ,issue_date_key
+    ,start_date_key
+    ,end_date_key
+    ,nett_premium 
+    ,gst_on_premium
+    ,total_premium
+    ,annualised_premium_discount_without_gst 
+    ,gst_on_discount_amount
+    ,loading_amount
+    ,gst_on_loading_amount
+    ,spi
+    ,annualised_premium_payable_without_gst
+    ,wpi
+    ,sum_assured
+    ,sales_agent_uuid 
+    ,servicing_agent_uuid
+    ,scan_date_key
+    ,despatch_date_key
+    ,customer_uuid
+    ,policy_type_code
+    ,business_type_code
+    ,source_code
+    ,covered_item_type_code
+    ,premium_mode_id
+    ,pay_mode_id
+    ,Retained_Premium_Without_GST
+    ,standard_premium_without_gst
+    ,Annualised_Standard_Premium_Without_GST
+    ,Annualised_Occupational_Loading 
+    ,Other_Loading
+    ,Annualised_Disability_Loading
+    ,Sub_Standard_Rate
+    ,Annualised_Mortality_Loading 
+	,ipmi_and_rider_discount_without_gst
+    ,ipmi_and_rider_discount_gst
+    ,ipmi_and_rider_loading_premium_without_gst
+    ,ipmi_and_rider_loading_premium_gst
+    ,mshl_additional_premium_without_gst
+    ,mshl_additional_premium_gst
+    ,mshl_premium_without_gst
+    ,mshl_premium_gst
+    ,ipmi_and_rider_premium_without_gst
+    ,ipmi_and_rider_premium_gst
+    ,mshl_premium_payable_without_gst
+    ,mshl_premium_payable_gst
+    ,ipmi_and_rider_premium_payable_without_gst
+    ,ipmi_and_rider_premium_payable_gst
+    ,mshl_pioneer_generation_subsidies_without_gst
+    ,mshl_pioneer_generation_subsidies_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_gst
+    ,mshl_transitional_subsidies_without_gst
+    ,mshl_transitional_subsidies_gst
+    ,mshl_premium_rebates_without_gst
+    ,mshl_premium_rebates_gst
+    ,mshl_pensioner_scheme_without_gst
+    ,mshl_pensioner_scheme_gst
+    ,Cover_Category
+	,ipmi_and_rider_discount_with_gst
+    ,ipmi_and_rider_loading_premium_with_gst
+    ,mshl_additional_premium_with_gst
+    ,mshl_premium_with_gst
+    ,ipmi_and_rider_premium_with_gst
+    ,mshl_premium_payable_with_gst
+    ,ipmi_and_rider_premium_payable_with_gst
+    ,mshl_pioneer_generation_subsidies_with_gst
+    ,mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst
+    ,mshl_transitional_subsidies_with_gst
+    ,mshl_premium_rebates_with_gst
+    ,mshl_pensioner_scheme_with_gst
+    ,cash_benefit
+    ,accumulated_bonus
+    ,surrender_bonus
+    ,non_inforce_policy_status_changed_date_key
+    ,reinstatement_date_key
+    ,Annualised_Standard_Premium_With_GST
+    ,Annualised_Premium_Payable_With_GST
+    ,Annualised_Premium_Discount_With_GST
+    ,Annualised_Subsidy_Without_GST
+    ,Annualised_Subsidy_With_GST
+    ,Annualised_Premium_Extra_Without_GST 
+    ,Annualised_Premium_Extra_With_GST
+	,checksum,'HIST' as table_type	FROM  el_eds_def.factpolicycovereditem b
+                     where b.business_key in (SELECT business_key 
+                                              FROM el_eds_def_stg.stgfactpolicycovereditem a where 
+                  a.record_eff_from_date <> b.record_eff_from_date and a.source_app_code='ISIS')
+                      AND b.active_record_ind = 'Y'
+					  and b.source_app_code = 'ISIS')
+                    )temp
+					 ) temp;			
+					 
+					 
+--Merging the temp table with final table
+
+MERGE INTO el_eds_def.factpolicycovereditem  
+USING #tempstgFactPolicyCoveredItem temp ON el_eds_def.factpolicycovereditem.business_key = temp.business_key 
+AND el_eds_def.factpolicycovereditem.record_eff_from_date= temp.record_eff_from_date and el_eds_def.factpolicycovereditem.source_app_code='ISIS'
+WHEN MATCHED 
+THEN UPDATE	
+		set
+		record_updated_date= temp.record_updated_date
+		,record_eff_to_date = case WHEN el_eds_def.factpolicycovereditem.active_record_ind = 'Y' AND temp.rnk != 1 then temp.latest_record_eff_from_date else el_eds_def.factpolicycovereditem.record_eff_to_date END
+		,active_record_ind = case WHEN el_eds_def.factpolicycovereditem.active_record_ind = 'Y' AND temp.rnk != 1 then temp.active_record_ind else el_eds_def.factpolicycovereditem.active_record_ind END
+		,policy_uuid=temp.policy_uuid
+		,policy_id=temp.policy_id
+		,policy_no=temp.policy_no
+		,campaign_uuid=temp.campaign_uuid
+		,product_uuid=temp.product_uuid
+		,policy_status_id=temp.policy_status_id
+		,submit_date_key=temp.submit_date_key
+		,entry_date_key=temp.entry_date_key
+		,commencement_date_key=temp.commencement_date_key
+		,issue_date_key=temp.issue_date_key
+		,start_date_key=temp.start_date_key
+		,end_date_key=temp.end_date_key
+		,nett_premium=temp.nett_premium
+		,gst_on_premium=temp.gst_on_premium
+		,total_premium=temp.total_premium
+		,annualised_premium_discount_without_gst=temp.annualised_premium_discount_without_gst
+		,gst_on_discount_amount=temp.gst_on_discount_amount
+		,loading_amount=temp.loading_amount
+		,gst_on_loading_amount=temp.gst_on_loading_amount
+		,spi=temp.spi
+		,annualised_premium_payable_without_gst=temp.annualised_premium_payable_without_gst
+		,wpi=temp.wpi
+		,sum_assured=temp.sum_assured
+		,sales_agent_uuid=temp.sales_agent_uuid
+		,servicing_agent_uuid=temp.servicing_agent_uuid
+		,scan_date_key=temp.scan_date_key
+		,despatch_date_key=temp.despatch_date_key
+		,customer_uuid=temp.customer_uuid
+		,policy_type_code=temp.policy_type_code
+		,business_type_code=temp.business_type_code
+		,source_code=temp.source_code
+		,covered_item_type_code=temp.covered_item_type_code
+		,premium_mode_id=temp.premium_mode_id
+		,pay_mode_id=temp.pay_mode_id
+		,Retained_Premium_Without_GST=temp.Retained_Premium_Without_GST
+		,standard_premium_without_gst=temp.standard_premium_without_gst
+		,Annualised_Standard_Premium_Without_GST=temp.Annualised_Standard_Premium_Without_GST
+		,Annualised_Occupational_Loading=temp.Annualised_Occupational_Loading
+		,Other_Loading=temp.Other_Loading
+		,Annualised_Disability_Loading=temp.Annualised_Disability_Loading
+		,Sub_Standard_Rate=temp.Sub_Standard_Rate
+		,Annualised_Mortality_Loading=temp.Annualised_Mortality_Loading
+		,ipmi_and_rider_discount_without_gst=temp.ipmi_and_rider_discount_without_gst
+		,ipmi_and_rider_discount_gst=temp.ipmi_and_rider_discount_gst
+		,ipmi_and_rider_loading_premium_without_gst=temp.ipmi_and_rider_loading_premium_without_gst
+		,ipmi_and_rider_loading_premium_gst=temp.ipmi_and_rider_loading_premium_gst
+		,mshl_additional_premium_without_gst=temp.mshl_additional_premium_without_gst
+		,mshl_additional_premium_gst=temp.mshl_additional_premium_gst
+		,mshl_premium_without_gst=temp.mshl_premium_without_gst
+		,mshl_premium_gst=temp.mshl_premium_gst
+		,ipmi_and_rider_premium_without_gst=temp.ipmi_and_rider_premium_without_gst
+		,ipmi_and_rider_premium_gst=temp.ipmi_and_rider_premium_gst
+		,mshl_premium_payable_without_gst=temp.mshl_premium_payable_without_gst
+		,mshl_premium_payable_gst=temp.mshl_premium_payable_gst
+		,ipmi_and_rider_premium_payable_without_gst=temp.ipmi_and_rider_premium_payable_without_gst
+		,ipmi_and_rider_premium_payable_gst=temp.ipmi_and_rider_premium_payable_gst
+		,mshl_pioneer_generation_subsidies_without_gst=temp.mshl_pioneer_generation_subsidies_without_gst
+		,mshl_pioneer_generation_subsidies_gst=temp.mshl_pioneer_generation_subsidies_gst
+		,mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst=temp.mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst
+		,mshl_premium_subsidies_for_lower_to_middle_income_households_gst=temp.mshl_premium_subsidies_for_lower_to_middle_income_households_gst
+		,mshl_transitional_subsidies_without_gst=temp.mshl_transitional_subsidies_without_gst
+		,mshl_transitional_subsidies_gst=temp.mshl_transitional_subsidies_gst
+		,mshl_premium_rebates_without_gst=temp.mshl_premium_rebates_without_gst
+		,mshl_premium_rebates_gst=temp.mshl_premium_rebates_gst
+		,mshl_pensioner_scheme_without_gst=temp.mshl_pensioner_scheme_without_gst
+		,mshl_pensioner_scheme_gst=temp.mshl_pensioner_scheme_gst
+		,Cover_Category=temp.Cover_Category
+		,ipmi_and_rider_discount_with_gst=temp.ipmi_and_rider_discount_with_gst
+		,ipmi_and_rider_loading_premium_with_gst=temp.ipmi_and_rider_loading_premium_with_gst
+		,mshl_additional_premium_with_gst=temp.mshl_additional_premium_with_gst
+		,mshl_premium_with_gst=temp.mshl_premium_with_gst
+		,ipmi_and_rider_premium_with_gst=temp.ipmi_and_rider_premium_with_gst
+		,mshl_premium_payable_with_gst=temp.mshl_premium_payable_with_gst
+		,ipmi_and_rider_premium_payable_with_gst=temp.ipmi_and_rider_premium_payable_with_gst
+		,mshl_pioneer_generation_subsidies_with_gst=temp.mshl_pioneer_generation_subsidies_with_gst
+		,mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst=temp.mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst
+		,mshl_transitional_subsidies_with_gst=temp.mshl_transitional_subsidies_with_gst
+		,mshl_premium_rebates_with_gst=temp.mshl_premium_rebates_with_gst
+		,mshl_pensioner_scheme_with_gst=temp.mshl_pensioner_scheme_with_gst
+		,cash_benefit=temp.cash_benefit
+		,accumulated_bonus=temp.accumulated_bonus
+		,surrender_bonus=temp.surrender_bonus
+		,non_inforce_policy_status_changed_date_key=temp.non_inforce_policy_status_changed_date_key
+		,reinstatement_date_key=temp.reinstatement_date_key
+		,Annualised_Standard_Premium_With_GST=temp.Annualised_Standard_Premium_With_GST
+		,Annualised_Premium_Payable_With_GST=temp.Annualised_Premium_Payable_With_GST
+		,Annualised_Premium_Discount_With_GST=temp.Annualised_Premium_Discount_With_GST
+		,Annualised_Subsidy_Without_GST=temp.Annualised_Subsidy_Without_GST
+		,Annualised_Subsidy_With_GST=temp.Annualised_Subsidy_With_GST
+		,Annualised_Premium_Extra_Without_GST=temp.Annualised_Premium_Extra_Without_GST
+		,Annualised_Premium_Extra_With_GST=temp.Annualised_Premium_Extra_With_GST
+		,checksum =temp.checksum
+WHEN NOT MATCHED
+THEN insert (
+source_app_code,
+source_data_set,
+dml_ind,
+record_created_date,
+record_updated_date,
+record_created_by,
+record_updated_by,
+record_eff_from_date,
+record_eff_to_date,
+active_record_ind,
+policy_covered_item_uuid,
+business_key
+,policy_uuid
+,policy_id
+,policy_no
+,campaign_uuid
+,product_uuid
+,policy_status_id
+,submit_date_key
+,entry_date_key
+,commencement_date_key
+,issue_date_key
+,start_date_key
+,end_date_key
+,nett_premium
+,gst_on_premium
+,total_premium
+,annualised_premium_discount_without_gst
+,gst_on_discount_amount
+,loading_amount
+,gst_on_loading_amount
+,spi
+,annualised_premium_payable_without_gst
+,wpi
+,sum_assured
+,sales_agent_uuid
+,servicing_agent_uuid
+,scan_date_key
+,despatch_date_key
+,customer_uuid
+,policy_type_code
+,business_type_code
+,source_code
+,covered_item_type_code
+,premium_mode_id
+,pay_mode_id
+,Retained_Premium_Without_GST
+,standard_premium_without_gst
+,Annualised_Standard_Premium_Without_GST
+,Annualised_Occupational_Loading
+,Other_Loading
+,Annualised_Disability_Loading
+,Sub_Standard_Rate
+,Annualised_Mortality_Loading
+,ipmi_and_rider_discount_without_gst
+,ipmi_and_rider_discount_gst
+,ipmi_and_rider_loading_premium_without_gst
+,ipmi_and_rider_loading_premium_gst
+,mshl_additional_premium_without_gst
+,mshl_additional_premium_gst
+,mshl_premium_without_gst
+,mshl_premium_gst
+,ipmi_and_rider_premium_without_gst
+,ipmi_and_rider_premium_gst
+,mshl_premium_payable_without_gst
+,mshl_premium_payable_gst
+,ipmi_and_rider_premium_payable_without_gst
+,ipmi_and_rider_premium_payable_gst
+,mshl_pioneer_generation_subsidies_without_gst
+,mshl_pioneer_generation_subsidies_gst
+,mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst
+,mshl_premium_subsidies_for_lower_to_middle_income_households_gst
+,mshl_transitional_subsidies_without_gst
+,mshl_transitional_subsidies_gst
+,mshl_premium_rebates_without_gst
+,mshl_premium_rebates_gst
+,mshl_pensioner_scheme_without_gst
+,mshl_pensioner_scheme_gst
+,Cover_Category
+,ipmi_and_rider_discount_with_gst
+,ipmi_and_rider_loading_premium_with_gst
+,mshl_additional_premium_with_gst
+,mshl_premium_with_gst
+,ipmi_and_rider_premium_with_gst
+,mshl_premium_payable_with_gst
+,ipmi_and_rider_premium_payable_with_gst
+,mshl_pioneer_generation_subsidies_with_gst
+,mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst
+,mshl_transitional_subsidies_with_gst
+,mshl_premium_rebates_with_gst
+,mshl_pensioner_scheme_with_gst
+,cash_benefit
+,accumulated_bonus
+,surrender_bonus
+,non_inforce_policy_status_changed_date_key
+,reinstatement_date_key
+,Annualised_Standard_Premium_With_GST
+,Annualised_Premium_Payable_With_GST
+,Annualised_Premium_Discount_With_GST
+,Annualised_Subsidy_Without_GST
+,Annualised_Subsidy_With_GST
+,Annualised_Premium_Extra_Without_GST
+,Annualised_Premium_Extra_With_GST
+,checksum)Values(
+temp.source_app_code
+,temp.source_data_set
+,temp.dml_ind
+,temp.record_created_date
+,temp.record_updated_date
+,temp.record_created_by
+,temp.record_updated_by
+,temp.record_eff_from_date
+,temp.record_eff_to_date
+,temp.active_record_ind
+,temp.policy_covered_item_uuid
+,temp.business_key
+,temp.policy_uuid
+,temp.policy_id
+,temp.policy_no
+,temp.campaign_uuid
+,temp.product_uuid
+,temp.policy_status_id
+,temp.submit_date_key
+,temp.entry_date_key
+,temp.commencement_date_key
+,temp.issue_date_key
+,temp.start_date_key
+,temp.end_date_key
+,temp.nett_premium
+,temp.gst_on_premium
+,temp.total_premium
+,temp.annualised_premium_discount_without_gst
+,temp.gst_on_discount_amount
+,temp.loading_amount
+,temp.gst_on_loading_amount
+,temp.spi
+,temp.annualised_premium_payable_without_gst
+,temp.wpi
+,temp.sum_assured
+,temp.sales_agent_uuid
+,temp.servicing_agent_uuid
+,temp.scan_date_key
+,temp.despatch_date_key
+,temp.customer_uuid
+,temp.policy_type_code
+,temp.business_type_code
+,temp.source_code
+,temp.covered_item_type_code
+,temp.premium_mode_id
+,temp.pay_mode_id
+,temp.Retained_Premium_Without_GST
+,temp.standard_premium_without_gst
+,temp.Annualised_Standard_Premium_Without_GST
+,temp.Annualised_Occupational_Loading
+,temp.Other_Loading
+,temp.Annualised_Disability_Loading
+,temp.Sub_Standard_Rate
+,temp.Annualised_Mortality_Loading
+,temp.ipmi_and_rider_discount_without_gst
+,temp.ipmi_and_rider_discount_gst
+,temp.ipmi_and_rider_loading_premium_without_gst
+,temp.ipmi_and_rider_loading_premium_gst
+,temp.mshl_additional_premium_without_gst
+,temp.mshl_additional_premium_gst
+,temp.mshl_premium_without_gst
+,temp.mshl_premium_gst
+,temp.ipmi_and_rider_premium_without_gst
+,temp.ipmi_and_rider_premium_gst
+,temp.mshl_premium_payable_without_gst
+,temp.mshl_premium_payable_gst
+,temp.ipmi_and_rider_premium_payable_without_gst
+,temp.ipmi_and_rider_premium_payable_gst
+,temp.mshl_pioneer_generation_subsidies_without_gst
+,temp.mshl_pioneer_generation_subsidies_gst
+,temp.mshl_premium_subsidies_for_lower_to_middle_income_households_without_gst
+,temp.mshl_premium_subsidies_for_lower_to_middle_income_households_gst
+,temp.mshl_transitional_subsidies_without_gst
+,temp.mshl_transitional_subsidies_gst
+,temp.mshl_premium_rebates_without_gst
+,temp.mshl_premium_rebates_gst
+,temp.mshl_pensioner_scheme_without_gst
+,temp.mshl_pensioner_scheme_gst
+,temp.Cover_Category
+,temp.ipmi_and_rider_discount_with_gst
+,temp.ipmi_and_rider_loading_premium_with_gst
+,temp.mshl_additional_premium_with_gst
+,temp.mshl_premium_with_gst
+,temp.ipmi_and_rider_premium_with_gst
+,temp.mshl_premium_payable_with_gst
+,temp.ipmi_and_rider_premium_payable_with_gst
+,temp.mshl_pioneer_generation_subsidies_with_gst
+,temp.mshl_premium_subsidies_for_lower_to_middle_income_households_with_gst
+,temp.mshl_transitional_subsidies_with_gst
+,temp.mshl_premium_rebates_with_gst
+,temp.mshl_pensioner_scheme_with_gst
+,temp.cash_benefit
+,temp.accumulated_bonus
+,temp.surrender_bonus
+,temp.non_inforce_policy_status_changed_date_key
+,temp.reinstatement_date_key
+,temp.Annualised_Standard_Premium_With_GST
+,temp.Annualised_Premium_Payable_With_GST
+,temp.Annualised_Premium_Discount_With_GST
+,temp.Annualised_Subsidy_Without_GST
+,temp.Annualised_Subsidy_With_GST
+,temp.Annualised_Premium_Extra_Without_GST
+,temp.Annualised_Premium_Extra_With_GST
+,temp.checksum
+);
+DROP TABLE IF EXISTS #tempstgFactPolicyCoveredItem ;
+END;
